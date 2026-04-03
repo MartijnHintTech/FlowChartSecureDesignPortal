@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HintTech Portaal Workflows — Klant · Kandidaat · Leverancier</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', -apple-system, system-ui, sans-serif; }
+    button { font-family: inherit; }
+    ::-webkit-scrollbar { height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useRef, useCallback } = React;
+
+
+const ACTORS = ["Kandidaat", "Opdrachtgever", "Leverancier", "HintTech"];
+const ACTOR_SUBS = ["ZZP'er / Medewerker", "Inlenende partij", "Tussenpartij", "MSP / Coördinatie"];
+
+const LANE_W = 260;
+const TOTAL_W = LANE_W * 4;
+const NODE_W = 190;
+const NODE_H = 52;
+const DIAMOND_SIZE = 70;
+const ROW_H = 95;
+const HEADER_H = 56;
+const PHASE_H = 36;
+
+const C = {
+  primary: "#5B4FE8", primaryLight: "#EEF0FF",
+  accent: "#E8A317",
+  green: "#16A34A", greenLight: "#DCFCE7",
+  red: "#DC2626", redLight: "#FEE2E2",
+  laneLine: "#E5E7EB", text: "#1F2937",
+  nodeStroke: "#5B4FE8", nodeFill: "#FAFBFF",
+  // Portal types
+  weergaveBg: "#FEF9C3", weergaveBorder: "#CA8A04", weergaveText: "#713F12",
+  actieBg: "#FFEDD5", actieBorder: "#EA580C", actieText: "#7C2D12",
+};
+
+function laneCenter(i) { return i * LANE_W + LANE_W / 2; }
+
+// ──────────── KANDIDAAT FLOW ────────────
+const kandidaatFlow = {
+  phases: [
+    { label: "OVERKOEPELENDE FUNCTIES", afterRow: -1 },
+    { label: "FASE 1 — REGISTRATIE & VACATURES", afterRow: 3 },
+    { label: "FASE 2 — MATCHING & SELECTIE", afterRow: 7 },
+    { label: "FASE 3 — CONTRACTEREN & ONBOARDING", afterRow: 14 },
+    { label: "FASE 4 — TIJDENS INZET", afterRow: 20 },
+    { label: "FASE 5 — BEËINDIGING", afterRow: 24 },
+  ],
+  nodes: [
+    // ── Overkoepelende functies (geen pijlen) ──
+    { id:"co1", lane:0, row:0, label:"Zoektermen instellen\nvoor vacature-alerts", type:"process", portal:"actie",
+      detail:"De kandidaat kan zoektermen en voorkeuren instellen als 'sweetspot':\n\n• Combinatie van zoektermen die worden gematcht met vacatures\n• Als een vacature matcht op de sweetspot, verschijnt deze prominent op het dashboard\n• Op basis van 6 expertisecategorieën + vrije zoektermen\n• Alerts per e-mail of in de portal bij nieuwe matches" },
+    { id:"co2", lane:3, row:0, label:"Historie alle eerdere\nopdrachten zichtbaar", type:"process", portal:"weergave",
+      detail:"De kandidaat ziet altijd een volledig overzicht van alle eerdere opdrachten:\n\n• Opdrachtgever, rol, periode, status\n• Beoordelingen en feedback\n• Geüploade documenten per opdracht\n• Compliance-status per historische inzet" },
+    { id:"co3", lane:0, row:1, label:"Compliance dossier\nexporteren/printen", type:"process", portal:"actie",
+      detail:"De kandidaat kan zijn eigen compliance-dossier exporteren of printen:\n\n• Overzicht van alle compliance-checks en hun status\n• Exporteerbaar als PDF voor eigen administratie\n• Bruikbaar bij andere opdrachtgevers of voor belastingaangifte\n• Toekomstige uitbreiding richting compliantinhuren.nl" },
+    { id:"co4", lane:3, row:1, label:"Chatbox + telefoon-\nnummer recruiter", type:"process", portal:"weergave",
+      detail:"In het portaal is altijd een chatbox beschikbaar voor direct contact:\n\n• Telefoonnummer van de recruiter die verantwoordelijk is voor de kandidaat in Carerix\n• Chatbox voor snelle vragen\n• Escalatie naar persoonlijk contact altijd mogelijk" },
+    { id:"co5b", lane:3, row:2, label:"Notificatie-instellingen\nper gebruiker", type:"process", portal:"actie",
+      detail:"De kandidaat kan instellen hoe notificaties worden ontvangen:\n\n• E-mail: standaard notificaties per mail\n• Portal-notificatie: meldingen in het kandidaatportaal\n• SMS/WhatsApp: voor urgente statuswijzigingen\n• Per gebruiker configureerbaar\n• Kan worden in-/uitgeschakeld per kanaal" },
+    { id:"co5", lane:0, row:3, label:"Auto opvolgings-\nmaatregelen open acties", type:"process", portal:"weergave",
+      detail:"Automatische opvolgingsmaatregelen bij open acties:\n\n• Contract niet getekend → herinneringsmail + notificatie in portaal\n• Documenten ontbreken → herinneringsmail + notificatie in portaal\n• VOG niet geüpload → herinneringsmail + notificatie in portaal\n• Notificaties verschijnen in het portaal bij alle openstaande acties\n• Herhaalt totdat de actie is afgerond of geëscaleerd" },
+
+    // ── Fase 1: Registratie & Vacatures ──
+    { id:"c0", lane:0, row:4, label:"Registratie op\nportaal", type:"start", portal:"actie",
+      detail:"De kandidaat registreert zich op het portaal met verplichte velden:\n\n• Persoonlijke gegevens, contactinfo, expertise, voorkeuren\n• Alle gegevens komen direct in Carerix terecht\n• Als de kandidaat al in de database staat, worden bestaande gegevens geüpdatet\n• Bij registratie geeft de kandidaat expertise en voorkeuren op" },
+    { id:"c1", lane:3, row:5, label:"Data naar Carerix\n(nieuw of update)", type:"process",
+      detail:"De registratiegegevens worden automatisch naar Carerix gestuurd:\n\n• Nieuw profiel aangemaakt als kandidaat nog niet bestaat\n• Bestaand profiel geüpdatet als kandidaat al in de database zit\n• Alle verplichte velden worden in de juiste Carerix-velden neergezet\n• Expertise en voorkeuren worden opgeslagen voor matching" },
+    { id:"c2", lane:3, row:6, label:"Gepersonaliseerde\nvacatureweergave", type:"process", portal:"actie",
+      detail:"HintTech configureert een gepersonaliseerde vacatureweergave op basis van expertise en voorkeuren:\n\n• Standaard filter op eigen expertise\n• Optie om alle vacatures te zien met één klik\n• Vacatures die matchen op sweetspot-zoektermen worden prominent getoond\n• Tijdens inzet: ook andere matchende vacatures zichtbaar op dashboard" },
+    { id:"c3", lane:0, row:7, label:"Solliciteren: eisen/\nwensen + CV uploaden", type:"process", portal:"actie",
+      detail:"Bij sollicitatie op een vacature:\n\n• Kandidaat beantwoordt vragen over eisen en wensen van de vacature\n• CV uploaden (of nieuw CV specifiek voor die vacature)\n• Als eisen en wensen niet goed herleidbaar zijn in het CV, wordt gevraagd een aangepast CV te uploaden\n• Na sollicitatie wordt de kandidaat automatisch gematcht in Carerix" },
+
+    // ── Fase 2: Matching & Selectie ──
+    { id:"c4", lane:3, row:8, label:"Matchstatussen\nzichtbaar (ouder-kind)", type:"process", portal:"weergave",
+      detail:"Na sollicitatie ziet de kandidaat zijn matchstatus in het portaal:\n\n• Statusen met ouder-kind relatie (niet alle interne statusen worden 1-op-1 doorvertaald)\n• HintTech bepaalt welke statusen zichtbaar zijn voor de kandidaat\n• Kandidaat kan de voortgang van zijn sollicitatie volgen" },
+    { id:"c5", lane:3, row:9, label:"Kandidaat\nvoorgesteld?", type:"decision",
+      detail:"HintTech beoordeelt of de kandidaat wordt voorgesteld aan de opdrachtgever:\n\n• Op basis van CV-match, eisen/wensen, beschikbaarheid\n• Bij afwijzing: HintTech communiceert de reden via het portaal\n• Bij voordracht: kandidaat gaat door naar interviewfase" },
+    { id:"c5n", lane:2, row:9, label:"Afwijzing door\nHintTech met reden", type:"end_red",
+      detail:"HintTech wijst de kandidaat af via het portaal:\n\n• De afwijzingsreden is zichtbaar in het portaal voor de kandidaat\n• De kandidaat kan reageren op andere vacatures\n• De afwijzing wordt vastgelegd in Carerix" },
+    { id:"c5a", lane:3, row:10, label:"HintTech nodigt uit\nvoor interview", type:"process", portal:"actie",
+      detail:"HintTech kan via het portaal een kandidaat uitnodigen voor een interview met de klant:\n\n• Dit wordt getriggerd vanuit een matchfase in Carerix — wanneer een kandidaat de juiste matchfase bereikt, kan HintTech de uitnodiging versturen\n• Datum, tijd, locatie/link worden ingesteld\n• De uitnodiging wordt automatisch naar de kandidaat gestuurd via het portaal\n• De matchfase in Carerix wordt automatisch bijgewerkt" },
+    { id:"c6", lane:0, row:11, label:"Interviewuitnodiging\nzichtbaar in portaal", type:"process", portal:"weergave",
+      detail:"De kandidaat ontvangt een interviewuitnodiging via het portaal:\n\n• Datum, tijd, locatie/link\n• Informatie over de opdrachtgever en het gesprek\n• Mogelijkheid om te bevestigen of een alternatief voor te stellen" },
+    { id:"c7", lane:1, row:12, label:"Klant accepteert\nkandidaat?", type:"decision",
+      detail:"Na het interview beoordeelt de klant (opdrachtgever) of de kandidaat wordt geaccepteerd:\n\n• De klant geeft via het portaal aan of de kandidaat wordt geselecteerd of afgewezen\n• Bij acceptatie: motivatie en eventuele opmerkingen\n• Bij afwijzing: verplicht redenveld met motivatie\n• De beslissing wordt direct doorgezet naar het kandidaatportaal" },
+    { id:"c7n", lane:2, row:13, label:"Afwijzing + motivatie\nin portaal", type:"end_red",
+      detail:"De kandidaat wordt niet geselecteerd door de klant na het interview:\n\n• De afwijzing verschijnt als bericht in het kandidaatportaal\n• De motivatie/reden van de klant is zichtbaar\n• De kandidaat kan reageren op andere vacatures\n• De afwijzing wordt vastgelegd in Carerix" },
+    { id:"c7y", lane:0, row:13, label:"Acceptatiemelding\nin portaal", type:"process", portal:"weergave",
+      detail:"De kandidaat is geaccepteerd door de klant na het interview:\n\n• Een bericht wordt vanuit het portaal gestuurd met het goede nieuws\n• De kandidaat ontvangt een notificatie (portaal + e-mail)\n• De vervolgstappen voor contracteren worden zichtbaar" },
+    { id:"c8", lane:1, row:14, label:"Kandidaat\ngeselecteerd", type:"process", portal:"weergave",
+      detail:"De klant heeft de kandidaat definitief geselecteerd. HintTech ontvangt een bevestiging en het contractproces wordt gestart. Zichtbaar in zowel het klant- als kandidaatportaal." },
+
+    // ── Fase 3: Contracteren & Onboarding ──
+    { id:"c9", lane:0, row:15, label:"Stappenproces:\ndocumenten groen/rood", type:"process", portal:"actie",
+      detail:"Na selectie krijgt de kandidaat een overzicht van alle benodigde acties en documenten:\n\n• Elk document/actie heeft een status: groen (afgerond) of rood (ontbrekend)\n• Stapsgewijs door alle vereisten geleid\n• Reeds eerder geüploade documenten staan al op groen\n• Duidelijk overzicht wat nog ontbreekt" },
+    { id:"c10", lane:0, row:16, label:"VOG aanvragen\nen uploaden", type:"process", portal:"actie",
+      detail:"De VOG-aanvraag en upload verloopt via het portaal:\n\n• HintTech zet de VOG-aanvraag klaar\n• Kandidaat ontvangt notificatie om de VOG aan te vragen\n• Na ontvangst: VOG-resultaat uploaden in het portaal\n• Status wordt automatisch bijgewerkt (rood → groen)" },
+    { id:"c11", lane:0, row:17, label:"Contract digitaal\nondertekenen", type:"process", portal:"actie",
+      detail:"Digitaal contractondertekening via het portaal:\n\n• Contract moet getekend zijn VÓÓR start van de opdracht\n• Integratie met externe ondertekentool (DocuSign/Adobe Sign)\n• Als contract niet wordt getekend: automatische opvolgingsmails\n• Status zichtbaar: verstuurd / getekend / goedgekeurd\n• Systeem blokkeert voortgang als contract niet is getekend" },
+    { id:"c12", lane:3, row:18, label:"Compliance wizard:\ndocumenten checken", type:"process",
+      detail:"HintTech voert een compliance wizard uit in de database:\n\n• Stap voor stap door alle benodigde documenten\n• Controle of documenten voldoen aan wet- en regelgeving\n• SNA, WTTA, Waadi, gelijke beloning, identiteitscontrole\n• Bij ZZP: ondernemerstoets (9-punts check) wordt hier uitgevoerd\n• Resultaten worden vastgelegd in het dossier" },
+    { id:"c13", lane:0, row:19, label:"Goedkeuring documenten\n+ pushmelding", type:"process", portal:"weergave",
+      detail:"Geüploade documenten moeten intern eerst door HintTech worden goedgekeurd:\n\n• Na goedkeuring ontvangt de kandidaat een pushmelding/notificatie\n• Per document: status 'in behandeling' → 'goedgekeurd' of 'afgekeurd'\n• Bij afkeuring: reden en instructie om opnieuw te uploaden\n• Pas als alle documenten zijn goedgekeurd is het onboarding-proces compleet" },
+    { id:"c14", lane:3, row:20, label:"ZZP compliance-toetsen\n(periodiek)", type:"process", portal:"weergave",
+      detail:"ZZP-specifiek: periodieke compliance-toetsen:\n\n• Ondernemerschap: werkt de ZZP'er voor eigen rekening en risico?\n• Aantal klanten: voor hoeveel opdrachtgevers werkt de ZZP'er?\n• Risico: welke risico's loopt de ZZP'er?\n• Verzekeringen: welke verzekeringen heeft de ZZP'er afgesloten?\n• Externe activiteiten: welke activiteiten ontplooit de ZZP'er buiten de opdracht?\n\nDeze toetsen worden periodiek (kwartaal/halfjaar) via het portaal uitgezet." },
+
+    // ── Fase 4: Tijdens Inzet ──
+    { id:"c15", lane:0, row:21, label:"Matchende vacatures\nop dashboard", type:"process", portal:"actie",
+      detail:"Tijdens de inzet ziet de kandidaat andere matchende vacatures op het dashboard:\n\n• Op basis van 6 expertisecategorieën + ingestelde zoektermen\n• Sweetspot-matches worden prominent getoond\n• Kandidaat kan alvast interesse tonen in toekomstige opdrachten\n• Zorgt voor continuïteit na afloop van de huidige opdracht" },
+    { id:"c16", lane:0, row:22, label:"Tussentijdse enquêtes\nin dashboard", type:"process", portal:"weergave",
+      detail:"Tussentijdse enquêtes verschijnen in het dashboard van de kandidaat:\n\n• Na contractondertekening: hoe vond je het administratieve proces?\n• Na betaling: hoe vond je de financiële afhandeling?\n• Tussentijdse evaluatie: ben je nog tevreden met de opdracht?\n• Resultaten worden gedeeld met HintTech voor kwaliteitsbewaking" },
+    { id:"c17", lane:3, row:23, label:"Monitoring uitvoering\n& compliance", type:"process",
+      detail:"HintTech monitort tijdens de inzet:\n\n• Uitvoering conform opdracht (geen structurele taakuitbreiding)\n• WTTA bewaking: tarief binnen onderbouwing\n• Bij ZZP: monitoring ondernemerschap (geen gezag, eigen risico)\n• Kwartaalcheck SNA/NEN4400-1\n• Afwijkingen vastgelegd in dossier" },
+    { id:"c18", lane:3, row:24, label:"Auto opvolgingsmails\nbij open compliance", type:"process",
+      detail:"Automatische opvolgingsmails bij openstaande compliance-items:\n\n• ZZP-toetsen niet ingevuld → herinnering\n• Documenten verlopen (bijv. KvK ouder dan 6 maanden) → nieuwe aanvraag\n• Herhaalt totdat het item is afgerond" },
+
+    // ── Fase 5: Beëindiging ──
+    { id:"c20", lane:3, row:25, label:"Décharge-overeenkomst\ndigitaal ondertekenen", type:"process",
+      detail:"Aan het einde van de opdracht wordt een décharge-overeenkomst opgesteld:\n\n• Resultaten van de opdracht worden bevestigd\n• Digitaal ondertekenen door de kandidaat\n• Zowel kandidaat als opdrachtgever tekenen\n• Pas na ondertekening is de opdracht formeel afgerond" },
+    { id:"c21", lane:3, row:26, label:"Laatste factuur pas\nna compliance compleet", type:"process", portal:"actie",
+      detail:"De laatste factuur wordt pas betaald als het compliance-dossier volledig is:\n\n• Alle checks afgerond (groen)\n• Alle documenten goedgekeurd\n• Décharge-overeenkomst getekend\n• Als er items openstaan: automatische mails naar kandidaat\n• Status zichtbaar in portaal: wat staat er nog open?" },
+    { id:"c22", lane:0, row:27, label:"Inzet afgerond", type:"end_green",
+      detail:"De inzet is volledig afgerond:\n\n• Compliance-dossier compleet en afgesloten\n• Laatste factuur betaald\n• Opdracht verschijnt in de historie\n• Kandidaat kan direct reageren op nieuwe vacatures" },
+  ],
+  edges: [
+    // Geen edges voor overkoepelende functies (co1-co5)
+    // Fase 1
+    {from:"c0",to:"c1"},{from:"c1",to:"c2"},{from:"c2",to:"c3"},
+    // Fase 2
+    {from:"c3",to:"c4"},{from:"c4",to:"c5"},
+    {from:"c5",to:"c5n",label:"Nee"},{from:"c5",to:"c5a",label:"Ja"},
+    {from:"c5a",to:"c6"},{from:"c6",to:"c7"},
+    {from:"c7",to:"c7n",label:"Nee"},{from:"c7",to:"c7y",label:"Ja"},
+    {from:"c7y",to:"c8"},
+    // Fase 3
+    {from:"c8",to:"c9"},{from:"c9",to:"c10"},{from:"c10",to:"c11"},
+    {from:"c11",to:"c12"},{from:"c12",to:"c13"},{from:"c13",to:"c14"},
+    // Fase 4
+    {from:"c14",to:"c15"},{from:"c15",to:"c16"},{from:"c16",to:"c17"},{from:"c17",to:"c18"},
+    // Fase 5
+    {from:"c18",to:"c20"},{from:"c20",to:"c21"},{from:"c21",to:"c22"},
+  ],
+};
+
+// ──────────── LEVERANCIER FLOW ────────────
+const leverancierFlow = {
+  phases: [
+    { label: "OVERKOEPELENDE FUNCTIES", afterRow: -1 },
+    { label: "FASE 1 — REGISTRATIE & KANDIDATEN", afterRow: 2 },
+    { label: "FASE 2 — MATCHING & SELECTIE", afterRow: 8 },
+    { label: "FASE 3 — CONTRACTEREN & COMPLIANCE", afterRow: 12 },
+    { label: "FASE 4 — OPERATIONEEL", afterRow: 15 },
+    { label: "FASE 5 — AFRONDING", afterRow: 19 },
+  ],
+  nodes: [
+    // ── Overkoepelende functies (geen pijlen) ──
+    { id:"lo1", lane:2, row:0, label:"Notificatie-instellingen\nper gebruiker", type:"process", portal:"actie",
+      detail:"De leverancier kan per gebruiker instellen hoe notificaties worden ontvangen:\n\n• E-mail: standaard notificaties per mail\n• Portal-notificatie: meldingen in het leveranciersportaal\n• SMS/WhatsApp: voor urgente matches of statuswijzigingen\n• Per gebruiker apart configureerbaar\n• Kan worden in-/uitgeschakeld per kanaal" },
+    { id:"lo2", lane:0, row:0, label:"Betalingsproces\nmonitoren", type:"process", portal:"weergave",
+      detail:"Het hele betalingsproces monitoren vanuit de portal:\n\n• Wanneer betaalbaar gesteld, wanneer betaald\n• Reden van blokkering als betaling niet doorgaat\n• Overzicht per kandidaat en per periode\n• Alle financiële statusen in één dashboard" },
+    { id:"lo3", lane:2, row:1, label:"Auto controle verloop\ndocumenten", type:"process",
+      detail:"Het systeem controleert automatisch het verloop van documenten:\n\n• KvK-uittreksel ouder dan 6 maanden → automatisch nieuwe aanvraag\n• Verlopen verzekeringen → melding naar leverancier\n• SNA-certificaat nadert einddatum → waarschuwing\n• Alle verlopen documenten worden gemarkeerd in het compliance-overzicht" },
+    { id:"lo4", lane:0, row:1, label:"Einddatums &\nafrondingen zichtbaar", type:"process", portal:"weergave",
+      detail:"Overzicht van alle einddatums en afrondingen per kandidaat:\n\n• Einddatums van lopende inzetten\n• Verlengingsmomenten\n• Signalering bij naderende einddatums\n• Status van afrondingsprocessen" },
+    { id:"lo5", lane:2, row:2, label:"Compliance dashboard\n& wizard", type:"process", portal:"weergave",
+      detail:"Compliance dashboard en wizard voor de leverancier:\n\n• Overzicht alle inzetten met groene/rode checks per compliance-onderdeel\n• SNA, WTTA, Waadi, gelijke beloning, VOG, KvK — alle onderdelen zichtbaar\n• Compliance wizard: stap voor stap door alle benodigde documenten\n• Per kandidaat zichtbaar welke items afgerond zijn en welke open staan\n• Exporteerbaar als compliance-rapport" },
+    { id:"lo6", lane:0, row:2, label:"Compliance rapport\ngenereren", type:"process", portal:"actie",
+      detail:"De leverancier kan een compliance rapport genereren over alle ingezette kandidaten:\n\n• Alle inzetten met einddaten\n• Alle compliance-checks en hun status\n• Exporteerbaar als PDF\n• Audit-proof voor interne en externe controles" },
+
+    // ── Fase 1: Registratie & Kandidaten ──
+    { id:"l0", lane:2, row:3, label:"Aanmelden als\nleverancier", type:"start", portal:"actie",
+      detail:"De leverancier meldt zichzelf aan via het leveranciersportaal:\n\n• Bedrijfsgegevens, KvK-nummer, contactpersoon\n• SNA-certificering wordt direct gecheckt\n• Na aanmelding krijgt de leverancier toegang tot het portaal\n• Bestaande leveranciers kunnen hun gegevens updaten\n• Mogelijkheid om aan te geven welke banen-categorieën interessant zijn — de leverancier krijgt op basis daarvan voorgestelde vacatures te zien in het portaal" },
+    { id:"l1", lane:2, row:4, label:"Kandidaten uploaden\n→ Carerix", type:"process", portal:"actie",
+      detail:"De leverancier kan eigen kandidaten uploaden in het portaal:\n\n• Kandidaten worden automatisch als kandidaat in Carerix verwerkt\n• Per kandidaat: CV uploaden, korte beschrijving toevoegen\n• Expertisegebieden opgeven (6 categorieën)\n• Beschikbaarheid aangeven\n• Meerdere kandidaten tegelijk uploaden mogelijk" },
+    { id:"l1b", lane:2, row:5, label:"Per kandidaat: CV,\nexpertise, beschikbaar", type:"process", portal:"actie",
+      detail:"Per kandidaat worden de volgende gegevens ingevuld:\n\n• CV uploaden (PDF of Word)\n• Korte beschrijving\n• Expertisegebieden: 6 categorieën aanvinken\n• Beschikbaarheid: 'op de bank' (direct beschikbaar) of 'over X maanden beschikbaar'\n• Gewenst tarief en voorwaarden" },
+    { id:"l2", lane:2, row:6, label:"Status per kandidaat:\nop de bank / beschikbaar", type:"process", portal:"weergave",
+      detail:"Per kandidaat is de status zichtbaar:\n\n• 'Op de bank': direct beschikbaar voor inzet\n• 'Over X maanden beschikbaar': kandidaat is momenteel bezet\n• Status kan door de leverancier worden aangepast\n• Bij wijziging: automatische hermatching met openstaande vacatures" },
+    { id:"l2b", lane:3, row:7, label:"Data naar Carerix\nverwerkt", type:"process",
+      detail:"Alle kandidaatgegevens worden automatisch verwerkt in Carerix:\n\n• Profielen aangemaakt of geüpdatet\n• Expertise en beschikbaarheid opgeslagen\n• Automatische matching met openstaande vacatures wordt gestart" },
+    { id:"l3", lane:2, row:8, label:"Overzicht matchende\nvacatures", type:"process", portal:"weergave",
+      detail:"De leverancier ziet een overzicht van alle vacatures die matchen op hun kandidaten:\n\n• Per kandidaat: welke vacatures passen\n• Per vacature: welke kandidaten matchen\n• Sorteren en filteren op alle velden\n• Inclusief voorgestelde vacatures op basis van gekozen banen-categorieën" },
+
+    // ── Fase 2: Matching & Selectie ──
+    { id:"l4", lane:2, row:9, label:"Meerdere kandidaten\naanvinken per vacature", type:"process", portal:"actie",
+      detail:"De leverancier kan meerdere kandidaten tegelijk aanvinken voor een vacature:\n\n• Batch-selectie mogelijk\n• Per aangevinkte kandidaat wordt een match aangemaakt in Carerix\n• Leverancier kan prioriteit aangeven per kandidaat" },
+    { id:"l5", lane:3, row:10, label:"Matchstatussen\nzichtbaar (ouder-kind)", type:"process", portal:"weergave",
+      detail:"De leverancier ziet de matchstatus per aangeboden kandidaat:\n\n• Statusen met ouder-kind relatie (door HintTech bepaald)\n• Het hele proces ontvouwt zich visueel per kandidaat" },
+    { id:"l6", lane:2, row:11, label:"Feedback van klant\nzichtbaar per kandidaat", type:"process", portal:"weergave",
+      detail:"De leverancier ziet de feedback van de klant per aangeboden kandidaat:\n\n• Reactie van de klant op het profiel\n• Na interview: feedback en beoordeling\n• Afwijzingsreden indien van toepassing\n• Selectiereden bij acceptatie" },
+    { id:"l7", lane:1, row:12, label:"Klant selecteert\nkandidaat", type:"process", portal:"weergave",
+      detail:"De klant selecteert een kandidaat van de leverancier. De leverancier ziet dit in het portaal en het contractproces wordt gestart." },
+
+    // ── Fase 3: Contracteren & Compliance ──
+    { id:"l8", lane:2, row:13, label:"Contract naar\nleverancier (tekenbevoegd)", type:"process", portal:"actie",
+      detail:"Het contract gaat naar de leverancier (niet naar de kandidaat):\n\n• Contract moet worden getekend door degene die tekenbevoegd is\n• Tekenbevoegdheid is geregistreerd in het systeem\n• Digitaal ondertekenen via het portaal (DocuSign/Adobe Sign)\n• Status zichtbaar: verstuurd / getekend / goedgekeurd" },
+    { id:"l9", lane:3, row:14, label:"Compliance wizard:\nWTTA, KvK, documenten", type:"process",
+      detail:"HintTech voert een compliance wizard uit voor de leverancier:\n\n• Gelijke beloning (WTTA)\n• KvK-uittreksel: geldigheidscheck (niet ouder dan 6 maanden)\n• SNA-certificering: actueel en geldig?\n• Overige compliance-documenten per regelgeving\n• Systeem controleert automatisch verloop van documenten" },
+    { id:"l10", lane:2, row:15, label:"Compliance overzicht\nper kandidaat", type:"process", portal:"weergave",
+      detail:"Per kandidaat is zichtbaar welke compliance-items zijn afgerond en welke nog open staan:\n\n• Groen: afgerond en goedgekeurd\n• Rood: ontbrekend of verlopen\n• Per document: status en vervaldatum\n• Exporteerbaar als compliance-rapport" },
+
+    // ── Fase 4: Operationeel ──
+    { id:"l11", lane:2, row:16, label:"Uren invoeren via\nMingo-link", type:"process", portal:"weergave",
+      detail:"De leverancier kan uren invoeren namens de kandidaat, of de kandidaat doet het zelf:\n\n• Via een embedded link in het portaal wordt de leverancier naar het externe platform Mingo gestuurd\n• Uren worden niet direct in het portaal ingevoerd, maar via Mingo\n• Leverancier kan namens meerdere kandidaten uren invoeren\n• Uren worden ter goedkeuring naar de opdrachtgever gestuurd" },
+    { id:"l12", lane:2, row:17, label:"Getekend urenbon\nuploaden", type:"process", portal:"actie",
+      detail:"De leverancier uploadt een getekend urenbon per kandidaat:\n\n• Handtekening van de opdrachtgever vereist\n• Upload via het portaal\n• Alleen goedgekeurde uren met getekend bon worden betaalbaar gesteld\n• Status zichtbaar: geüpload / goedgekeurd / afgekeurd" },
+    { id:"l13", lane:2, row:18, label:"Betalingsstatus\nper kandidaat", type:"process", portal:"weergave",
+      detail:"De betalingsstatus is zichtbaar per kandidaat:\n\n• Wanneer betaalbaar gesteld (met datum)\n• Wanneer betaald (met datum)\n• Reden van blokkering als betaling niet doorgaat" },
+    { id:"l14", lane:3, row:19, label:"Monitoring &\ncompliance bewaking", type:"process",
+      detail:"HintTech monitort tijdens de inzet:\n\n• WTTA bewaking / pay-ok\n• SNA/ketenverantwoordelijkheid: kwartaalcontrole\n• Arbeidstijden bewaken (ATW)\n• Bij non-compliance: aanvullende maatregelen" },
+
+    // ── Fase 5: Afronding ──
+    { id:"l15", lane:2, row:20, label:"Einddatums en\nafrondingen monitoren", type:"process", portal:"weergave",
+      detail:"De leverancier ziet alle einddatums en afrondingen per kandidaat:\n\n• Naderende einddatums met alerts\n• Status van het afrondingsproces\n• Welke stappen nog nodig zijn voor volledige afronding" },
+    { id:"l16", lane:3, row:21, label:"Compliance dossier\nafsluiten", type:"process",
+      detail:"HintTech sluit het compliance-dossier af:\n\n• Alle checks afgerond (groen)\n• Laatste factuur wordt pas betaald als alles rond is\n• Dossier gemarkeerd als afgesloten met bewaartermijnen" },
+    { id:"l17", lane:2, row:22, label:"Laatste factuur &\nafsluiting", type:"end_green",
+      detail:"De laatste factuur wordt betaald zodra het compliance-dossier volledig is." },
+  ],
+  edges: [
+    // Geen edges voor overkoepelende functies (lo1-lo6)
+    // Fase 1
+    {from:"l0",to:"l1"},{from:"l1",to:"l1b"},{from:"l1b",to:"l2"},{from:"l2",to:"l2b"},{from:"l2b",to:"l3"},
+    // Fase 2
+    {from:"l3",to:"l4"},{from:"l4",to:"l5"},{from:"l5",to:"l6"},{from:"l6",to:"l7"},
+    // Fase 3
+    {from:"l7",to:"l8"},{from:"l8",to:"l9"},{from:"l9",to:"l10"},
+    // Fase 4
+    {from:"l10",to:"l11"},{from:"l11",to:"l12"},{from:"l12",to:"l13"},{from:"l13",to:"l14"},
+    // Fase 5
+    {from:"l14",to:"l15"},{from:"l15",to:"l16"},{from:"l16",to:"l17"},
+  ],
+};
+
+// ──────────── KLANT FLOW ────────────
+// portal: "weergave" = lichtgeel (klant ziet resultaat in portaal)
+// portal: "actie" = lichtoranje (klant moet actie ondernemen in portaal)
+// geen portal = standaard blauw (intern/systeem)
+const klantFlow = {
+  phases: [
+    { label: "OVERKOEPELENDE FUNCTIES", afterRow: -1 },
+    { label: "FASE 1 — AANVRAAG & VACATURE", afterRow: 3 },
+    { label: "FASE 2 — SELECTIE & INTERVIEW", afterRow: 10 },
+    { label: "FASE 3 — CONTRACTEREN", afterRow: 14 },
+    { label: "FASE 4 — OPERATIONEEL", afterRow: 16 },
+    { label: "FASE 5 — EVALUATIE & AFRONDING", afterRow: 20 },
+  ],
+  nodes: [
+    // ── Overkoepelende functies (geen pijlen) ──
+    { id:"ko1", lane:3, row:0, label:"Compliance dashboard\n(groen/rood checks)", type:"process", portal:"weergave",
+      detail:"Compliance dashboard in het klantportaal:\n\n• Overzicht alle inzetten bij deze klant met groene/rode checks per compliance-onderdeel\n• SNA, WTTA, Waadi, gelijke beloning, VOG, KvK — alle onderdelen zichtbaar\n• Als er een rood item is, ziet de klant dit direct\n• Van de hele populatie ingezette kandidaten een overzicht" },
+    { id:"ko2", lane:1, row:0, label:"Compliance rapport\ngenereren", type:"process", portal:"actie",
+      detail:"De klant kan een compliance rapport genereren over de gehele populatie ingezette kandidaten:\n\n• Alle inzetten met einddaten\n• Alle compliance-checks en hun status\n• Exporteerbaar als PDF\n• Audit-proof voor interne en externe controles" },
+    { id:"ko3", lane:3, row:1, label:"Rolgebaseerde\ntoegangsrechten", type:"process", portal:"actie",
+      detail:"Rolgebaseerde toegangsrechten (security layers) per gebruiker per klant:\n\n• Programmamanager: ziet alleen eigen facturen/uren\n• Financieel manager: ziet alles\n• Inkoper: ziet alles\n• Projectmanager: ziet alleen eigen projecten" },
+    { id:"ko4", lane:1, row:1, label:"Overzicht kandidaten\n& vacatures", type:"process", portal:"weergave",
+      detail:"Overzicht van aangeboden kandidaten per vacature en alle vacatures met de mogelijkheid tot sorteren en filteren op alle overzichten.\n\n• Moet geschaald zijn voor grote aantallen: 150-200 kandidaten en 10+ vacatures per week per klant\n• Sorteren en filteren op alle velden" },
+    { id:"ko5", lane:3, row:2, label:"Documenten zichtbaar-\nheid per klant", type:"process", portal:"weergave",
+      detail:"Per klant instelbaar welke kandidaat-documenten zichtbaar zijn in het portaal. De ene klant wil alles zien, de andere klant niet. HintTech configureert dit per klant." },
+    { id:"ko6", lane:1, row:2, label:"Livechat met\nAI chatbot", type:"process", portal:"weergave",
+      detail:"Mogelijkheid tot implementatie van een livechat met een AI chatbot in het klantportaal:\n\n• Direct contact met HintTech via chatbot\n• AI-gestuurde antwoorden op veelgestelde vragen\n• Escalatie naar menselijke medewerker indien nodig\n• Beschikbaar in alle portalen (klant, kandidaat, leverancier)\n• Klant voelt zich niet alleen door het systeem afgewikkeld" },
+    { id:"ko7", lane:3, row:3, label:"Notificatie-instellingen\nper gebruiker", type:"process", portal:"actie",
+      detail:"De klant kan per gebruiker instellen hoe notificaties worden ontvangen:\n\n• E-mail: standaard notificaties per mail\n• Portal-notificatie: meldingen in het klantportaal\n• SMS/WhatsApp: voor urgente statuswijzigingen\n• Per gebruiker apart configureerbaar\n• Kan worden in-/uitgeschakeld per kanaal" },
+
+    // ── Fase 1: Aanvraag & Vacature ──
+    { id:"k0", lane:1, row:4, label:"Aanvraag ingevoerd\ndoor klant", type:"start", portal:"actie",
+      detail:"De klant voert een inhuurverzoek / vacature in via het klantportaal. Meertalige ondersteuning is beschikbaar." },
+    { id:"k1", lane:3, row:5, label:"Aanvraag naar\nCarerix gestuurd", type:"process",
+      detail:"De aanvraag wordt automatisch doorgestuurd naar Carerix (ATS). Alle informatie wordt in de juiste velden neergezet." },
+    { id:"k2", lane:3, row:6, label:"AI Bot checkt\nvacatureteksten", type:"decision",
+      detail:"Een AI Bot in Carerix controleert of de vacatureteksten voldoen aan de vereisten:\n\n• Zijn alle verplichte velden ingevuld?\n• Voldoet de tekst aan de kwaliteitseisen?\n• Zijn de eisen en wensen helder geformuleerd?\n• Zijn er juridische of compliance-gerelateerde issues?" },
+    { id:"k2n", lane:1, row:7, label:"Notificatie aan klant:\nvacature afgekeurd", type:"end_red",
+      detail:"De klant ontvangt een notificatie in het portaal met verbeterpunten. De klant kan de vacature aanpassen en opnieuw indienen." },
+    { id:"k3", lane:3, row:8, label:"Vacature uploaden\nop website", type:"process",
+      detail:"Na goedkeuring wordt de vacature automatisch gepubliceerd op de HintTech-website en externe platforms." },
+    { id:"k4", lane:1, row:9, label:"Notificatie naar\nklant: vacature live", type:"process", portal:"actie",
+      detail:"De klant ontvangt een bevestigingsnotificatie in het portaal en per e-mail dat de vacature live staat. Inclusief een link naar de gepubliceerde vacature." },
+    { id:"k4b", lane:3, row:10, label:"HintTech bepaalt\nzichtbaarheid statussen", type:"process", portal:"weergave",
+      detail:"HintTech bepaalt welke vacaturestatussen zichtbaar zijn per portaal.\n\nVacaturestatussen met ouder-kind relatie (bijv. 'open', 'uitgezet', 'warm', 'gesloten' — intern meer detail, extern gegroepeerd). HintTech kan per klant configureren welke statusen zichtbaar zijn." },
+
+    // ── Fase 2: Selectie & Interview ──
+    { id:"k5", lane:3, row:11, label:"HintTech bepaalt\nzichtbaarheid kandidaten", type:"process", portal:"weergave",
+      detail:"HintTech bepaalt op basis van de matchfase wanneer een kandidaat zichtbaar wordt voor de klant in het portaal. Niet alle interne statusen worden 1-op-1 doorvertaald — er zit een ouder-kind relatie op de statusen die HintTech zelf kan configureren per klant." },
+    { id:"k6", lane:1, row:12, label:"Kandidaten beoordelen:\nuitnodigen of afwijzen", type:"process", portal:"actie",
+      detail:"De klant kan per aangeboden kandidaat:\n\n• Uitnodigen voor een interview (met reden)\n• Afwijzen (met verplicht redenveld)\n• Doorlaten gaan naar de volgende fase (met reden)\n\nMoet werken bij hoog volume: 150-200 kandidaten en 10+ vacatures per week." },
+    { id:"k7", lane:1, row:13, label:"Interview feedback\nvastleggen", type:"process", portal:"actie",
+      detail:"Na elk interview legt de klant feedback vast in het portaal:\n\n• Wie wordt er afgewezen? Met welke reden?\n• Wie gaat er door? Met welke reden?\n• Opmerkingen en scores per kandidaat\n\nFeedback is zichtbaar voor HintTech en wordt doorvertaald naar kandidaat-/leveranciersportaal (gefilterd)." },
+    { id:"k8", lane:1, row:14, label:"Kandidaat\ngeselecteerd", type:"process", portal:"actie",
+      detail:"De klant selecteert de definitieve kandidaat. HintTech ontvangt een bevestiging en het contractproces wordt gestart." },
+
+    // ── Fase 3: Contracteren ──
+    { id:"k9", lane:1, row:15, label:"Contract digitaal\nondertekenen", type:"process", portal:"actie",
+      detail:"Digitaal contractproces:\n\n• Standaardcontract per klant (configureerbaar)\n• Integratie met externe ondertekentool (DocuSign/Adobe Sign)\n• Contract wordt digitaal ondertekend door de klant\n• Status zichtbaar: verstuurd / getekend / goedgekeurd" },
+    { id:"k10", lane:3, row:16, label:"Onboarding-eisen\nfunnel", type:"process", portal:"actie",
+      detail:"De klant wordt door alle onboarding-eisen geleid in de portaal via een stapsgewijs proces (funnel):\n\n• NDA, VOG/screening, ARBO/veiligheid\n• Per stap: uploaden, invullen of ondertekenen\n• Reeds afgerond = groen, ontbrekend = rood\n• Automatische herinneringsmails bij ontbrekende items\n\nHintTech monitort de voortgang van alle onboarding-eisen en toont de status aan de klant in het portaal. Pas als alles rond is, kan de inzet starten." },
+
+    // ── Fase 4: Operationeel ──
+    { id:"k15", lane:1, row:17, label:"Urengoedkeuring\n(via Mingo)", type:"process", portal:"weergave",
+      detail:"Urengoedkeuring via een embedded link in het portaal:\n\n• De klant wordt via een embedded link naar een extern platform (Mingo) gestuurd om daar de uren in te vullen en goed te keuren\n• Klant hoeft niet apart in te loggen op een ander systeem\n• Alleen goedgekeurde uren worden betaalbaar gesteld\n• Facturen worden automatisch verstuurd na goedkeuring" },
+    { id:"k16", lane:1, row:18, label:"Factuuroverzicht &\nbetalingsstatus", type:"process", portal:"weergave",
+      detail:"Factuuroverzicht in het klantportaal:\n\n• Wanneer betaalbaar gesteld, wanneer betaald\n• Reden van blokkering als factuur niet doorgaat\n• Sorteren en filteren op alle velden\n• Rolgebaseerd: wie mag welke facturen zien" },
+    { id:"k17", lane:3, row:19, label:"Tussentijdse\nenquêtes uitzetten", type:"process", portal:"weergave",
+      detail:"Tussentijdse tevredenheidsenquêtes (geïntegreerd via enquêtetool):\n\n• Automatisch uitgezet op vaste momenten\n• Klant vult in via het portaal\n• Resultaten beschikbaar voor HintTech" },
+    { id:"k18", lane:3, row:20, label:"Lopende inzetten\nmonitoren", type:"process", portal:"actie",
+      detail:"Overzicht alle lopende inzetten met:\n\n• Einddatums en verlengingsmomenten\n• Compliance-status per inzet\n• Alerts bij naderende einddatums\n• Signalering als acties nodig zijn" },
+
+    // ── Fase 5: Evaluatie & Afronding ──
+    { id:"k19", lane:1, row:21, label:"Eind-enquête\ninvullen", type:"process", portal:"weergave",
+      detail:"Aan het einde van een inzet vult de klant een eind-enquête in:\n\n• Tevredenheid over de kandidaat\n• Tevredenheid over het proces\n• Resultaten bereikt?\n• Aanbevelingen voor verbetering" },
+    { id:"k20", lane:3, row:22, label:"Compliance dossier\nafsluiten", type:"process",
+      detail:"HintTech sluit het compliance-dossier af:\n\n• Alle checks afgerond (groen)\n• Laatste factuur wordt pas betaald als alles rond is\n• Dossier gemarkeerd als afgesloten met bewaartermijnen" },
+    { id:"k21", lane:1, row:23, label:"Laatste factuur &\nafsluiting", type:"end_green",
+      detail:"De klant ontvangt de laatste factuur. Betaling pas zodra compliance-dossier compleet is." },
+  ],
+  edges: [
+    // Geen edges voor overkoepelende functies (ko1-ko6)
+    {from:"k0",to:"k1"},{from:"k1",to:"k2"},{from:"k2",to:"k2n",label:"Nee"},{from:"k2",to:"k3",label:"Ja"},
+    {from:"k3",to:"k4"},{from:"k4",to:"k4b"},
+    {from:"k4b",to:"k5"},{from:"k5",to:"k6"},{from:"k6",to:"k7"},{from:"k7",to:"k8"},
+    {from:"k8",to:"k9"},{from:"k9",to:"k10"},
+    {from:"k10",to:"k15"},{from:"k15",to:"k16"},{from:"k16",to:"k17"},{from:"k17",to:"k18"},
+    {from:"k18",to:"k19"},{from:"k19",to:"k20"},{from:"k20",to:"k21"},
+  ],
+};
+
+// ──────────── RENDERING ────────────
+
+function getNodePos(node, phases) {
+  const phasesBefore = phases.filter(p => p.afterRow < node.row).length;
+  return { cx: laneCenter(node.lane), cy: HEADER_H + phasesBefore * PHASE_H + node.row * ROW_H + ROW_H / 2 + 10 };
+}
+
+function buildPath(fn, tn, phases, label) {
+  const from = getNodePos(fn, phases), to = getNodePos(tn, phases);
+  const fH = fn.type==="decision"?DIAMOND_SIZE/2:NODE_H/2, tH = tn.type==="decision"?DIAMOND_SIZE/2:NODE_H/2;
+  const fB=from.cy+fH, tT=to.cy-tH;
+  const fR=from.cx+(fn.type==="decision"?DIAMOND_SIZE/2:NODE_W/2), fL=from.cx-(fn.type==="decision"?DIAMOND_SIZE/2:NODE_W/2);
+  const same=fn.lane===tn.lane, dec=fn.type==="decision"&&label, left=tn.lane<fn.lane;
+  let path,lp;
+  if(same){path=`M ${from.cx} ${fB} L ${from.cx} ${tT}`;lp={x:from.cx+10,y:(fB+tT)/2};}
+  else if(dec&&left){path=`M ${fL} ${from.cy} L ${to.cx} ${from.cy} L ${to.cx} ${tT}`;lp={x:fL-18,y:from.cy-6};}
+  else if(dec){path=`M ${fR} ${from.cy} L ${to.cx} ${from.cy} L ${to.cx} ${tT}`;lp={x:fR+8,y:from.cy-6};}
+  else{const mY=fB+(tT-fB)*0.35;path=`M ${from.cx} ${fB} L ${from.cx} ${mY} L ${to.cx} ${mY} L ${to.cx} ${tT}`;lp={x:(from.cx+to.cx)/2,y:mY-6};}
+  return {path,labelPos:lp};
+}
+
+function DetailPanel({ node, onClose }) {
+  if (!node) return null;
+  const typeLabel = node.type==="decision"?"Beslismoment":node.type==="start"?"Startpunt":node.type==="end_green"?"Eindpunt":node.type==="end_red"?"Stoppunt":"Processtap";
+  const portalLabel = node.portal==="weergave"?" · Weergave in portaal":node.portal==="actie"?" · Actie in portaal":"";
+  const actorName = ACTORS[node.lane];
+  const accentColor = node.type==="decision"?C.accent:node.type==="end_red"?C.red:node.type==="end_green"?C.green:node.portal==="weergave"?C.weergaveBorder:node.portal==="actie"?C.actieBorder:C.primary;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:"16px",maxWidth:"560px",width:"100%",maxHeight:"80vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 25px 60px rgba(0,0,0,0.3)"}}>
+        <div style={{background:accentColor,padding:"20px 24px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{fontSize:"9px",fontWeight:700,color:"rgba(255,255,255,0.7)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:"6px"}}>{typeLabel}{portalLabel} · {actorName}</div>
+            <div style={{fontSize:"18px",fontWeight:800,color:"#fff",lineHeight:1.3}}>{node.label.replace(/\n/g," ")}</div>
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:"8px",width:"32px",height:"32px",color:"#fff",fontSize:"18px",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+        <div style={{padding:"20px 24px",overflowY:"auto",flex:1}}>
+          <div style={{fontSize:"13px",color:"#374151",lineHeight:1.7,whiteSpace:"pre-line",fontFamily:"'Segoe UI', system-ui, sans-serif"}}>
+            {node.detail.split("\n").map((line, i) => {
+              const t = line.trim();
+              if (!t) return <div key={i} style={{height:"10px"}} />;
+              if (/^\d+\.\s/.test(t) && !t.startsWith("•") && t.length < 80) return <div key={i} style={{fontWeight:700,color:"#111827",fontSize:"13px",marginTop:i>0?"14px":"0",marginBottom:"4px",borderLeft:`3px solid ${accentColor}`,paddingLeft:"10px"}}>{t}</div>;
+              if (t.startsWith("Doel:") || t.startsWith("CHECKLIST") || t.startsWith("VASTLEGGEN") || t.startsWith("Finale")) return <div key={i} style={{fontWeight:700,color:accentColor,fontSize:"13px",marginTop:"10px",marginBottom:"4px"}}>{t}</div>;
+              if (t.startsWith("•") || t.startsWith("→")) return <div key={i} style={{paddingLeft:"16px",position:"relative",marginBottom:"3px"}}><span style={{position:"absolute",left:"4px",color:accentColor,fontWeight:700}}>{t[0]}</span><span>{t.substring(1).trim()}</span></div>;
+              return <div key={i} style={{marginBottom:"2px"}}>{t}</div>;
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlowChart({ flow }) {
+  const [hovered, setHovered] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef(null);
+  const maxRow = Math.max(...flow.nodes.map(n => n.row));
+  const totalH = HEADER_H + flow.phases.length * PHASE_H + (maxRow + 1) * ROW_H + 80;
+  const nodeMap = {};
+  flow.nodes.forEach(n => { nodeMap[n.id] = n; });
+  const handleMouseMove = useCallback((e) => {
+    if (containerRef.current) { const rect = containerRef.current.getBoundingClientRect(); setTooltipPos({x:e.clientX-rect.left+containerRef.current.scrollLeft,y:e.clientY-rect.top+containerRef.current.scrollTop}); }
+  }, []);
+
+  return (
+    <>
+      <div ref={containerRef} onMouseMove={handleMouseMove} style={{position:"relative",width:"100%",overflowX:"auto",border:"1px solid #E5E7EB",borderRadius:"12px",background:"#fff"}}>
+        <div style={{position:"relative",width:`${TOTAL_W}px`,height:`${totalH}px`}}>
+          <div style={{position:"sticky",top:0,zIndex:30,display:"flex",height:`${HEADER_H}px`,background:C.primary,borderRadius:"12px 12px 0 0"}}>
+            {ACTORS.map((a,i)=>(<div key={a} style={{width:`${LANE_W}px`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderRight:i<3?"1px solid rgba(255,255,255,0.2)":"none"}}><span style={{color:"#fff",fontSize:"13px",fontWeight:800,letterSpacing:"0.8px",textTransform:"uppercase"}}>{a}</span><span style={{color:"rgba(255,255,255,0.55)",fontSize:"9px",fontWeight:500,marginTop:"1px"}}>{ACTOR_SUBS[i]}</span></div>))}
+          </div>
+          {[1,2,3].map(i=>(<div key={i} style={{position:"absolute",left:`${i*LANE_W}px`,top:`${HEADER_H}px`,bottom:0,width:"1px",background:C.laneLine,zIndex:1}}/>))}
+          {ACTORS.map((_,i)=>(<div key={i} style={{position:"absolute",left:`${i*LANE_W}px`,top:`${HEADER_H}px`,width:`${LANE_W}px`,bottom:0,background:i%2===0?"#FAFBFF":"#FFFFFF",zIndex:0}}/>))}
+          {flow.phases.map((p,pi)=>{const yPos=HEADER_H+pi*PHASE_H+(p.afterRow+1)*ROW_H;return(<div key={pi} style={{position:"absolute",left:0,top:`${yPos}px`,width:"100%",height:`${PHASE_H}px`,background:`${C.primary}0D`,borderTop:`2px solid ${C.primary}30`,borderBottom:`1px solid ${C.primary}15`,display:"flex",alignItems:"center",paddingLeft:"16px",zIndex:5}}><span style={{fontSize:"10px",fontWeight:800,color:C.primary,letterSpacing:"1.2px"}}>{p.label}</span></div>);})}
+          <svg style={{position:"absolute",left:0,top:0,width:"100%",height:"100%",zIndex:8,pointerEvents:"none"}}>
+            <defs>
+              <marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#9CA3AF"/></marker>
+              <marker id="ahR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill={C.red}/></marker>
+            </defs>
+            {flow.edges.map((e,i)=>{const fn=nodeMap[e.from],tn=nodeMap[e.to];if(!fn||!tn)return null;const{path,labelPos}=buildPath(fn,tn,flow.phases,e.label);const rej=tn.type==="end_red";return(<g key={i}><path d={path} fill="none" stroke={rej?C.red:"#9CA3AF"} strokeWidth={rej?2:1.5} strokeDasharray={rej?"6,3":"none"} markerEnd={rej?"url(#ahR)":"url(#ah)"}/>{e.label&&labelPos&&(<><circle cx={labelPos.x} cy={labelPos.y+4} r="11" fill={rej?C.red:C.green}/><text x={labelPos.x} y={labelPos.y+8} textAnchor="middle" fontSize="8" fontWeight="800" fill="#fff">{e.label}</text></>)}</g>);})}
+          </svg>
+          {flow.nodes.map((node)=>{
+            const pos=getNodePos(node,flow.phases);
+            const isHov=hovered===node.id;
+            const hasDetail=!!node.detail;
+            if(node.type==="decision"){
+              return(<div key={node.id} onMouseEnter={()=>setHovered(node.id)} onMouseLeave={()=>setHovered(null)} onClick={()=>hasDetail&&setSelectedNode(node)} style={{position:"absolute",left:`${pos.cx-DIAMOND_SIZE/2}px`,top:`${pos.cy-DIAMOND_SIZE/2}px`,width:`${DIAMOND_SIZE}px`,height:`${DIAMOND_SIZE}px`,transform:"rotate(45deg)",background:C.accent,border:`2px solid ${C.accent}`,borderRadius:"4px",zIndex:10,cursor:hasDetail?"pointer":"default",boxShadow:isHov?`0 4px 16px ${C.accent}50`:"0 1px 4px rgba(0,0,0,0.1)",transition:"box-shadow 0.2s"}}><div style={{transform:"rotate(-45deg)",width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"4px"}}><span style={{fontSize:"8.5px",fontWeight:700,color:"#fff",lineHeight:1.2}}>{node.label.replace(/\n/g," ")}</span></div>{hasDetail&&<div style={{position:"absolute",bottom:"-2px",right:"-2px",transform:"rotate(-45deg)",background:"rgba(255,255,255,0.3)",borderRadius:"50%",width:"14px",height:"14px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"8px",color:"#fff",fontWeight:700}}>i</div>}</div>);
+            }
+            // Determine colors based on type + portal
+            let bg=C.nodeFill,bc=C.nodeStroke,tc=C.text,r="6px";
+            if(node.type==="end_green"){bg=C.greenLight;bc=C.green;tc="#14532D";r="20px";}
+            else if(node.type==="end_red"){bg=C.redLight;bc=C.red;tc="#7F1D1D";r="20px";}
+            else if(node.portal==="weergave"){bg=C.weergaveBg;bc=C.weergaveBorder;tc=C.weergaveText;r=node.type==="start"?"20px":"6px";}
+            else if(node.portal==="actie"){bg=C.actieBg;bc=C.actieBorder;tc=C.actieText;r=node.type==="start"?"20px":"6px";}
+            else if(node.type==="start"){bg=C.primaryLight;bc=C.primary;r="20px";}
+            return(<div key={node.id} onMouseEnter={()=>setHovered(node.id)} onMouseLeave={()=>setHovered(null)} onClick={()=>hasDetail&&setSelectedNode(node)} style={{position:"absolute",left:`${pos.cx-NODE_W/2}px`,top:`${pos.cy-NODE_H/2}px`,width:`${NODE_W}px`,height:`${NODE_H}px`,background:bg,border:`1.5px solid ${bc}`,borderRadius:r,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",zIndex:10,cursor:hasDetail?"pointer":"default",boxShadow:isHov?`0 4px 16px ${bc}30`:"0 1px 3px rgba(0,0,0,0.06)",transition:"box-shadow 0.2s",padding:"4px 10px"}}><span style={{fontSize:"11px",fontWeight:600,color:tc,lineHeight:1.3,whiteSpace:"pre-line"}}>{node.label}</span>{hasDetail&&<span style={{position:"absolute",bottom:"3px",right:"7px",fontSize:"13px",color:bc,opacity:0.5,fontWeight:700}}>ⓘ</span>}</div>);
+          })}
+          {hovered&&nodeMap[hovered]?.detail&&!selectedNode&&(<div style={{position:"absolute",left:tooltipPos.x+14,top:tooltipPos.y-8,background:"#1e293b",color:"#fff",padding:"8px 12px",borderRadius:"8px",fontSize:"11px",lineHeight:1.4,maxWidth:"260px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",zIndex:100,pointerEvents:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.3)"}}><span style={{opacity:0.6,fontSize:"9px"}}>Klik voor details</span></div>)}
+        </div>
+      </div>
+      {selectedNode && <DetailPanel node={selectedNode} onClose={()=>setSelectedNode(null)} />}
+    </>
+  );
+}
+
+function App() {
+  const [activeTab, setActiveTab] = useState("klant");
+  const tabs = [{id:"klant",label:"Klant"},{id:"kandidaat",label:"Kandidaat"},{id:"leverancier",label:"Leverancier"}];
+  const titles = {klant:"Klant Portaal Procesflow",kandidaat:"Kandidaat Procesflow",leverancier:"Leverancier Procesflow"};
+  return (
+    <div style={{fontFamily:"'Segoe UI', -apple-system, system-ui, sans-serif",background:"#F3F4F6",minHeight:"100vh",padding:"28px 24px"}}>
+      <div style={{textAlign:"center",marginBottom:"8px"}}>
+        <h1 style={{margin:0,fontSize:"28px",fontWeight:900,color:"#111827",letterSpacing:"-0.5px",textTransform:"uppercase"}}>{titles[activeTab]}</h1>
+        <p style={{margin:"6px 0 0",fontSize:"12px",color:"#6B7280",letterSpacing:"0.3px"}}>HintTech · Portaal Workflow · Compliance WDBA · VBAR · SNA · WTTA</p>
+      </div>
+      <div style={{width:"100%",height:"1px",background:"#D1D5DB",margin:"16px 0 20px"}}/>
+      <div style={{display:"flex",gap:"6px",justifyContent:"center",marginBottom:"24px"}}>
+        {tabs.map(tab=>(<button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:activeTab===tab.id?C.primary:"#fff",color:activeTab===tab.id?"#fff":"#4B5563",border:`1.5px solid ${activeTab===tab.id?C.primary:"#D1D5DB"}`,borderRadius:"8px",padding:"10px 28px",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>{tab.label}</button>))}
+      </div>
+      {/* Legend */}
+      <div style={{display:"flex",justifyContent:"center",gap:"16px",marginBottom:"16px",flexWrap:"wrap"}}>
+        {[
+          {color:C.primaryLight,border:C.primary,text:"Start",r:"10px"},
+          {color:C.nodeFill,border:C.nodeStroke,text:"Processtap",r:"3px"},
+          {color:C.accent,border:C.accent,text:"Beslismoment",diamond:true},
+          {color:C.greenLight,border:C.green,text:"Afgerond",r:"10px"},
+          {color:C.redLight,border:C.red,text:"Stop",r:"10px"},
+          {color:C.weergaveBg,border:C.weergaveBorder,text:"Weergave in portaal",r:"3px"},
+          {color:C.actieBg,border:C.actieBorder,text:"Actie in portaal",r:"3px"},
+        ].map((it,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:"6px"}}>
+            <div style={{width:it.diamond?"14px":"22px",height:"14px",background:it.color,border:`1.5px solid ${it.border}`,borderRadius:it.diamond?"2px":(it.r||"3px"),transform:it.diamond?"rotate(45deg)":"none"}}/>
+            <span style={{fontSize:"11px",color:"#6B7280",fontWeight:600}}>{it.text}</span>
+          </div>
+        ))}
+      </div>
+      <p style={{textAlign:"center",fontSize:"11px",color:"#9CA3AF",marginBottom:"16px"}}>Klik op een stap voor volledige beschrijving · Scroll horizontaal indien nodig</p>
+      {activeTab==="kandidaat"&&<FlowChart flow={kandidaatFlow}/>}
+      {activeTab==="leverancier"&&<FlowChart flow={leverancierFlow}/>}
+      {activeTab==="klant"&&<FlowChart flow={klantFlow}/>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:"20px",padding:"12px 0",borderTop:"1px solid #E5E7EB"}}>
+        <div style={{background:C.primary,color:"#fff",fontWeight:900,fontSize:"12px",padding:"4px 10px",borderRadius:"6px"}}>HintTech</div>
+        <span style={{fontSize:"10px",color:"#9CA3AF"}}>Portaal Workflow · WDBA · VBAR · SNA · WTTA</span>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
